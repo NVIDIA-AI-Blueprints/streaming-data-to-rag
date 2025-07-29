@@ -1,0 +1,44 @@
+######################################################################################################
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
+#
+# NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
+# property and proprietary rights in and to this material, related
+# documentation and any modifications thereto. Any use, reproduction,
+# disclosure or distribution of this material and related documentation
+# without an express license agreement from NVIDIA CORPORATION or
+# its affiliates is strictly prohibited.
+######################################################################################################
+
+sensor:
+    sample_rate: 2_000_000  # Sample rate of sensor (Hz)
+
+network_rx:
+    ip_addr: "0.0.0.0"
+    dst_port: 5005
+    l4_proto: "udp"
+    batch_size: 500000  # Bytes to accumulate before emitting
+    header_bytes: 8
+    max_payload_size: 1472
+
+pkt_format:
+    log_period: 5  # Log bandwidth processed every N (seconds)
+
+channelizer:
+    num_channels: 3
+    channel_spacing: 200_000  # Hz
+
+lowpassfilt:
+    cutoff: 100_000  # Cutoff frequency of filter (Hz)
+    numtaps: 101
+
+resample:
+    sample_rate_out: 16_000  # Sample rate required by Riva ASR (16KHz PCM)
+    gain: 10.0
+
+riva:
+    src_lang_code: "en-US"
+    automatic_punctuation: true
+    verbatim_transcripts: false
+    sample_rate: 16000           # Sample rate required by Riva ASR (16KHz PCM)
+    min_db_export_chars: 500

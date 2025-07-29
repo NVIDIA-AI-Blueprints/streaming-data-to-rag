@@ -1,0 +1,128 @@
+######################################################################################################
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
+#
+# NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
+# property and proprietary rights in and to this material, related
+# documentation and any modifications thereto. Any use, reproduction,
+# disclosure or distribution of this material and related documentation
+# without an express license agreement from NVIDIA CORPORATION or
+# its affiliates is strictly prohibited.
+######################################################################################################
+
+services:
+  # Speech Recognition (ASR) NIM
+  asr-nim:
+    # Setup image and container info
+    container_name: asr-nim
+    image: "nvcr.io/nim/nvidia/parakeet-0-6b-ctc-en-us:latest"
+    volumes:
+    - ${MODEL_DIRECTORY:-.}:/opt/nim/.cache
+    ports:
+    - "50050:50050"
+    - "50051:50051"
+    expose:
+    - "50050"
+    - "50051"
+    environment:
+      NGC_API_KEY: ${NVIDIA_API_KEY:?"NVIDIA_API_KEY is required"}
+      NIM_HTTP_API_PORT: 50050
+      NIM_GRPC_API_PORT: 50051
+      NIM_TAGS_SELECTOR: name=parakeet-0-6b-ctc-riva-en-us,mode=str
+    shm_size: 8gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['${ASR_GPU_ID:-0}']
+              capabilities: [gpu]
+
+  # Holoscan-based SDR
+  holoscan-sdr:
+    container_name: holoscan-sdr
+    image: holoscan-sdr:latest
+    build:
+      context: ../src/software-defined-radio
+      dockerfile: Dockerfile
+    volumes:
+      - ../src/software-defined-radio:/workspace/sdr-holoscan
+    network_mode: host
+    environment:
+      TZ: ${TIMEZONE:-America/New_York}
+      SDR_LOG_LEVEL: ${SDR_LOG_LEVEL:-INFO}
+      FRONTEND_URI: localhost:3000
+      DATABASE_URI: localhost:8001
+      ASR_URI: 0.0.0.0:50051
+      RAG_UUID: ${RAG_UUID:-123456}
+    working_dir: /workspace/
+    command: "python sdr-holoscan/app.py"
+    runtime: nvidia
+    shm_size: 8gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['${SDR_GPU_ID:-0}']
+              capabilities: [gpu]
+
+  # Frontend UI
+  agentiq-ui:
+    container_name: agentiq-ui
+    image: agentiq-ui:latest
+    networks:
+      - ctx-rag
+    ports:
+      - "3000:3000"
+    build:
+      context: ../external/NeMo-Agent-Toolkit-UI
+      dockerfile: Dockerfile
+    environment:
+      RAG_UUID: ${RAG_UUID:-123456}
+      NEXT_PUBLIC_HTTP_CHAT_COMPLETION_URL: http://vss-ctx-rag-retriever:8000/call
+
+  # File Replay
+  replay:
+    container_name: fm-file-replay
+    image: fm-file-replay:latest
+    profiles:
+      - replay
+    build:
+      context: ../src/file-replay
+      dockerfile: Dockerfile
+
+    environment:
+      TZ: ${TIMEZONE:-America/New_York}
+
+    volumes:
+      - ../src/file-replay/files:/workspace/files
+
+    working_dir: /workspace/
+    command: >
+      python replay.py
+        --file-names "${REPLAY_FILES:?"REPLAY_FILES is required"}"
+        --dst-ip ${REPLAY_DST_IP:-"0.0.0.0"}
+        --dst-port ${REPLAY_DST_PORT:-5005}
+        --sample-rate ${REPLAY_SAMPLE_RATE:-2000000}
+        --freq-separation ${REPLAY_FREQ_SEPARATION:-200000}
+        --packet-size ${REPLAY_PACKET_SIZE:-1472}
+        --total-time ${REPLAY_TIME:-0}
+        --max-file-size ${REPLAY_MAX_FILE_SIZE:-50}
+
+    network_mode: host
+
+    # Enable GPU usage
+    runtime: nvidia
+    shm_size: 8gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['${REPLAY_GPU:-0}']
+              capabilities: [gpu]
+
+networks:
+  ctx-rag:
+    external: true

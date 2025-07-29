@@ -1,0 +1,27 @@
+######################################################################################################
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
+#
+# NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
+# property and proprietary rights in and to this material, related
+# documentation and any modifications thereto. Any use, reproduction,
+# disclosure or distribution of this material and related documentation
+# without an express license agreement from NVIDIA CORPORATION or
+# its affiliates is strictly prohibited.
+######################################################################################################
+
+[tool.poetry]
+name = "file-replay"
+version = "0.1.0"
+description = ""
+authors = ["Dylan Eustice <deustice@nvidia.com>"]
+packages = []
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+librosa = "0.11.0"
+cupy-cuda12x = "13.4.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
