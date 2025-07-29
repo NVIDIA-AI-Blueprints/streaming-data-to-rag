@@ -1,4 +1,4 @@
-# SDR Blueprint
+# Streaming Data to RAG Developer Example
 
 ## Overview
 
@@ -39,6 +39,8 @@ While this reference example showcases an ingestion pipeline transcribing FM-rad
 - Go to [https://build.nvidia.com/nvidia/streaming-data-to-rag](https://build.nvidia.com/nvidia/streaming-data-to-rag).
 - Click *Deploy on Cloud* to go the launchable page on Brev.
 - Click *Deploy Launchable* to start an instance that can run the notebooks.
+- Click *Open Notebook* once the Launchable has been built to open the Jupyter server.
+- Open the notebook inside the Jupyter server: `launchable.ipynb`.
 
 ## Requirements
 
