@@ -1,0 +1,124 @@
+name: Deploy Streaming Data to RAG
+
+on:
+  push:
+    branches: [ main, develop, github-actins-workflow ]
+  pull_request:
+    branches: [ main, github-actins-workflow ]
+  workflow_dispatch:
+
+env:
+  MODEL_DIRECTORY: ~/.cache/nim
+  REPLAY_FILES: "sample_files/ai_gtc_1.mp3,sample_files/ai_gtc_2.mp3,sample_files/ai_gtc_3.mp3"
+  REPLAY_TIME: 3600
+  REPLAY_MAX_FILE_SIZE: 50
+  RAG_UUID: "123456"
+
+jobs:
+  check-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      nvidia-api-key-exists: ${{ steps.check-nvidia-key.outputs.exists }}
+    steps:
+      - name: Check NVIDIA_API_KEY secret
+        id: check-nvidia-key
+        run: |
+          if [ -z "${{ secrets.NVIDIA_API_KEY }}" ]; then
+            echo "ERROR: NVIDIA_API_KEY secret is not configured!"
+            echo "Please add your NVIDIA API key as a repository secret:"
+            echo "1. Go to Settings > Secrets and variables > Actions"
+            echo "2. Click 'New repository secret'"
+            echo "3. Name: NVIDIA_API_KEY"
+            echo "4. Value: your-nvidia-api-key-from-build.nvidia.com"
+            echo "exists=false" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "SUCCESS: NVIDIA_API_KEY secret is configured"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    needs: check-secrets
+    if: needs.check-secrets.outputs.nvidia-api-key-exists == 'true'
+    runs-on: arc-runner-set-oke-org-poc
+    env:
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update and initialize submodules
+        run: git submodule update --init --recursive
+
+      - name: Build Docker image
+        env:
+          MODEL_DIRECTORY: nim-cache
+        run: |
+          docker build -t ctx_rag -f external/context-aware-rag/docker/Dockerfile external/context-aware-rag
+
+      - name: Build Docker images
+        run: |
+          docker compose -f deploy/docker-compose.yaml --profile replay build
+
+      - name: Clean up orphaned containers
+        run: |
+          echo "Cleaning up orphaned containers and networks..."
+          
+          docker compose -f external/context-aware-rag/docker/deploy/compose.yaml down --remove-orphans || true
+          docker compose -f deploy/docker-compose.yaml --profile replay down --remove-orphans || true
+          
+          docker system prune -f
+          
+          echo "Checking system resources..."
+          free -h
+          df -h
+          docker system df
+          
+          echo "Cleanup completed successfully!"
+
+      - name: Start services
+        run: |
+          echo "${{ secrets.NVIDIA_API_KEY }}" | docker login nvcr.io -u '$oauthtoken' --password-stdin
+           
+          docker pull nvcr.io/nim/nvidia/llama-3.2-nv-embedqa-1b-v2:latest
+
+          docker compose -f external/context-aware-rag/docker/deploy/compose.yaml up -d \
+            --scale jaeger=0 \
+            --scale cassandra=0 \
+            --scale cassandra-schema=0 \
+            --scale otel_collector=0 \
+            --scale prometheus=0 \
+            --scale grafana=0
+          
+          echo "Waiting for RAG services to be healthy..."
+
+      - name: Wait for RAG services to be healthy
+        run: |
+          echo "Checking RAG services health..."
+          
+          # Wait for Retrieval service
+          echo "Waiting for Retrieval service..."
+          timeout 300 bash -c 'until curl -f http://localhost:8000/health; do sleep 5; done'
+          
+          # Wait for Ingestion service
+          echo "Waiting for Ingestion service..."
+          timeout 300 bash -c 'until curl -f http://localhost:8001/health; do sleep 5; done'
+          
+          # Wait for Milvus
+          echo "Waiting for Milvus..."
+          timeout 300 bash -c 'until curl -f http://localhost:9091/healthz; do sleep 5; done'
+          
+          # Wait for Neo4j
+          echo "Waiting for Neo4j..."
+          timeout 300 bash -c 'until curl -f http://localhost:7474; do sleep 5; done'
+          
+          echo "All RAG services are healthy!"
+
+      - name: Deploy FM Radio Ingestion Workflow and UI
+        run: |
+          echo "Deploying FM Radio Ingestion Workflow and UI..."
+          docker compose -f deploy/docker-compose.yaml --profile replay up -d
+          echo "FM Radio Ingestion Workflow and UI deployed successfully!"
