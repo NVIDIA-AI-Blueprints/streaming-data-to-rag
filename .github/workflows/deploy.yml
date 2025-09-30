@@ -2,9 +2,9 @@ name: Deploy Streaming Data to RAG
 
 on:
   push:
-    branches: [ main, develop, github-actins-workflow ]
+    branches: [ main, develop, actions-0.1 ]
   pull_request:
-    branches: [ main, github-actins-workflow ]
+    branches: [ main, actions-0.1 ]
   workflow_dispatch:
 
 env:
