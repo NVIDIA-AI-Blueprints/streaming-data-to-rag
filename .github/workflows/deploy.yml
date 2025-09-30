@@ -2,9 +2,9 @@ name: Deploy Streaming Data to RAG
 
 on:
   push:
-    branches: [ main, develop, actions-0.1 ]
+    branches: [ main, develop]
   pull_request:
-    branches: [ main, actions-0.1 ]
+    branches: [ main]
   workflow_dispatch:
 
 env:
@@ -40,7 +40,7 @@ jobs:
   deploy:
     needs: check-secrets
     if: needs.check-secrets.outputs.nvidia-api-key-exists == 'true'
-    runs-on: arc-runner-set-oke-org-poc
+    runs-on: arc-runner-set-oke-org-nv-ai-bp
     env:
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
     steps:
