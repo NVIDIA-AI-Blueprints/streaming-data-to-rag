@@ -83,7 +83,7 @@ jobs:
         run: |
           echo "${{ secrets.NVIDIA_API_KEY }}" | docker login nvcr.io -u '$oauthtoken' --password-stdin
            
-          docker pull nvcr.io/nim/nvidia/llama-3.2-nv-embedqa-1b-v2:latest
+          docker pull nvcr.io/nim/nvidia/llama-3.2-nv-embedqa-1b-v2:1.10.0
 
           docker compose -f external/context-aware-rag/docker/deploy/compose.yaml up -d \
             --scale jaeger=0 \
