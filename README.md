@@ -90,7 +90,7 @@ See full documentation for the 3rd party repositories used:
 
 #### API Endpoints
 
-- [Llama 3.1 70b instruct NIM](https://build.nvidia.com/meta/llama-3_1-70b-instruct)
+- [NVIDIA Nemotron Nano 9b v2 NIM](https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2)
 - [NVIDIA NeMo Retriever Llama 3.2 reranking NIM](https://build.nvidia.com/nvidia/llama-3_2-nv-rerankqa-1b-v2)
 
 > **NOTE:** The NIM services used by the RAG backend (i.e. everything except for the ASR NIM) have configurable endpoints that can be set in `external/context-aware-rag/config/config.yaml`. Cloud and on-prem NIM deployments can be used interchangeably by updating the endpoints in the RAG configuration file.
@@ -133,6 +133,8 @@ You may also upload your own audio files to explore the Streaming Data to RAG de
 
 The file replay service is *not* just replaying audio. Rather, it is fully simulating the type of data seen by the Holoscan SDR if it was connected to physical hardware producing baseband I/Q samples. For more details, see [src/file-replay/README.md](src/file-replay/README.md).
 
+**Note**: Replay files must be located within the build context of the `file-replay` service that is deployed, specifically inside `src/file-replay/files`. So for a file located at `streaming-data-to-rag/src/file-replay/files/my-audio.mp3`, the ENV should be set to `export REPLAY_FILES="my-audio.mp3"`.
+
 ```bash
 # Replay files must be comma-separated and located in `src/file-replay/files`
 export REPLAY_FILES="sample_files/ai_gtc_1.mp3, sample_files/ai_gtc_2.mp3, sample_files/ai_gtc_3.mp3"
@@ -145,7 +147,7 @@ export REPLAY_MAX_FILE_SIZE=50  # Maximum size of an individual file in MB
 #### Context-Aware RAG Image
 Build the image needed for the context-aware RAG system:
 ```bash
-docker build -t ctx_rag -f external/context-aware-rag/docker/Dockerfile external/context-aware-rag
+docker compose -f external/context-aware-rag/docker/deploy/compose.yaml build
 ```
 
 #### FM Radio Ingestion Workflow Images
@@ -161,13 +163,19 @@ docker compose -f deploy/docker-compose.yaml --profile replay build
 
 ### Deploy
 
-1. Context-Aware RAG services: `docker compose -f external/context-aware-rag/docker/deploy/compose.yaml up -d`
+1. Context-Aware RAG services:
+```bash
+docker compose -f external/context-aware-rag/docker/deploy/compose.yaml up -d
+```
 2. Wait for the RAG services to be healthy before proceeding.
     - Retrieval service: http://localhost:8000/health
     - Ingestion service: http://localhost:8001/health
     - Milvus: http://localhost:9091/healthz
     - Neo4j: http://localhost:7474
-3. FM Radio Ingestion Workflow and UI: `docker compose -f deploy/docker-compose.yaml --profile replay up -d`
+3. FM Radio Ingestion Workflow and UI:
+```bash
+docker compose -f deploy/docker-compose.yaml --profile replay up -d
+```
 
 > **Quick notes about Context-Aware RAG service**
 >
@@ -230,6 +238,14 @@ Some suggested questions to start with:
     + *"What was the main topic of conversation on channel 0, excluding the past ten minutes?"*
         - Retrieves up to `top_k` documents on channel 0 added prior to 600 seconds ago
 
+## Teardown
+
+To end all services, run:
+```bash
+docker compose -f external/context-aware-rag/docker/deploy/compose.yaml down
+docker compose -f ../deploy/docker-compose.yaml --profile replay down
+```
+
 ## Ethical Considerations
 NVIDIA believes Trustworthy AI is a shared responsibility, and we have established policies and practices to enable development for a wide array of AI applications. When downloaded or used in accordance with our terms of service, developers should work with their supporting model team to ensure the models meet requirements for the relevant industry and use case and address unforeseen product misuse. Please report security vulnerabilities or NVIDIA AI concerns [here](https://www.nvidia.com/en-us/support/submit-security-vulnerability/).
 
@@ -240,5 +256,5 @@ Use of the models in this blueprint is governed by the [NVIDIA AI Foundation Mod
 The software and materials are governed by the [NVIDIA Software License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-software-license-agreement/) and the [Product-Specific Terms for AI Products](https://www.nvidia.com/en-us/agreements/enterprise-software/product-specific-terms-for-ai-products/); except for the models, which are governed by the [NVIDIA Community Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-community-models-license/); the NVIDIA NeMo-Agent-Toolkit-UI, which is governed by the [MIT License](https://github.com/NVIDIA/NeMo-Agent-Toolkit-UI/blob/main/LICENSE); the NVIDIA Holoscan SDK and the NVIDIA Context Aware RAG, which are governed by the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0); and the audio files, which are licensed under the [Creative Commons Attribution 4.0 International License (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/legalcode).
 
 #### Additional Information
-For llama-3.1-70b-instruct, [Llama 3.1 Community License Agreement](https://www.llama.com/llama3_1/license/). Built with Llama. For llama-3.2-nv-embedqa-1b-v2 and llama-3.2-nv-rerankqa-1b-v2, the [Llama 3.2 Community License Agreement](https://www.llama.com/llama3_2/license/). Built with Llama.
+For nvidia-nemotron-nano-9b-v2, [NVIDIA Open Model License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/). For llama-3.2-nv-embedqa-1b-v2 and llama-3.2-nv-rerankqa-1b-v2, the [Llama 3.2 Community License Agreement](https://www.llama.com/llama3_2/license/). Built with Llama.
 

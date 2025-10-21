@@ -51,6 +51,8 @@ class RivaThread(threading.Thread):
         self.channel_id = channel_id if channel_id is not None else 0
         self._database_text = None
         self._min_db_export_chars = self.params["min_db_export_chars"]
+        self._min_db_export_timeout_sec = self.params["db_export_timeout_sec"]
+        self._last_db_export_timestamp = None
 
         # Setup channel-aware logger
         logger_name = f"riva_asr_ch{self.channel_id}" if channel_id is not None else "riva_asr"
@@ -70,7 +72,26 @@ class RivaThread(threading.Thread):
 
         # Initialize collection
         if self.database_uri is not None and initialize:
-            self._initialize_ingest_service()
+            attempts = 0
+            max_attempts = 10
+            sleep_time = 10
+            while attempts < max_attempts:
+                try:
+                    self._initialize_ingest_service()
+                    break
+                except Exception as e:
+                    self.logger.warning(
+                        f"Error initializing ingest service, trying again in "
+                        f"{sleep_time} seconds ({attempts}/{max_attempts})"
+                    )
+                    attempts += 1
+                    if attempts == max_attempts:
+                        self.logger.error(
+                            f"Failed to initialize ingest service after "
+                            f"{max_attempts} attempts"
+                        )
+                        raise
+                    time.sleep(sleep_time)
 
         self.logger.info(f"RivaThread initialized for channel {self.channel_id}")
 
@@ -153,7 +174,13 @@ class RivaThread(threading.Thread):
         else:
             self._database_text += f" {transcript}"
 
-        if len(self._database_text) < self._min_db_export_chars:
+        hit_char_limit = len(self._database_text) >= self._min_db_export_chars
+        timeout = (
+            time.time() - self._last_db_export_timestamp > self._min_db_export_timeout_sec
+            if self._last_db_export_timestamp is not None
+            else False
+        )
+        if not hit_char_limit and not timeout:
             return
 
         # Determine start and end times for this export
@@ -210,6 +237,7 @@ class RivaThread(threading.Thread):
         self._database_text = None
         self._first_transcript_time = None
         self._prev_export_time = end_time
+        self._last_db_export_timestamp = time.time()
 
     def _frontend_export(self, transcript, timestamp=None, uuid=None):
         self.logger.info(f"Frontend export (Channel {self.channel_id}): {transcript}")
@@ -218,7 +246,7 @@ class RivaThread(threading.Thread):
         elif timestamp is None:
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
-        endpoint = f"http://{self.frontend_uri}/api/update-text"
+        endpoint = f"http://{self.frontend_uri}/api/update-data-stream"
         data = {
             "text": transcript,
             "stream_id": f"fm-radio-ch{self.channel_id}",

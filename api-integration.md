@@ -145,9 +145,9 @@ The streaming application updates the frontend UI in real-time using the followi
 
 #### Update Text Stream
 
-**Endpoint:** `POST /api/update-text`
+**Endpoint:** `POST /api/update-data-stream`
 
-**URL:** `http://<frontend_uri>/api/update-text`
+**URL:** `http://<frontend_uri>/api/update-data-stream`
 
 **Purpose:** Send real-time transcript updates to the frontend UI
 
@@ -180,7 +180,7 @@ import requests
 from datetime import datetime, timezone
 
 def send_to_frontend(transcript, stream_id, is_final=False):
-    endpoint = f"http://{frontend_uri}/api/update-text"
+    endpoint = f"http://{frontend_uri}/api/update-data-stream"
     data = {
         "text": transcript,
         "stream_id": f"stream-{stream_id}",

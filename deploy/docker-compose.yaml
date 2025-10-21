@@ -15,7 +15,7 @@ services:
   asr-nim:
     # Setup image and container info
     container_name: asr-nim
-    image: "nvcr.io/nim/nvidia/parakeet-0-6b-ctc-en-us:latest"
+    image: "nvcr.io/nim/nvidia/parakeet-0-6b-ctc-en-us:2"
     volumes:
     - ${MODEL_DIRECTORY:-.}:/opt/nim/.cache
     ports:
@@ -78,9 +78,13 @@ services:
     build:
       context: ../external/NeMo-Agent-Toolkit-UI
       dockerfile: Dockerfile
+      target: builder
+    env_file:
+      - ./nemo-agent-toolkit-ui.env
+    command: npm run dev
     environment:
-      RAG_UUID: ${RAG_UUID:-123456}
-      NEXT_PUBLIC_HTTP_CHAT_COMPLETION_URL: http://vss-ctx-rag-retriever:8000/call
+      - NODE_ENV=development
+      - HOSTNAME=0.0.0.0
 
   # File Replay
   replay:

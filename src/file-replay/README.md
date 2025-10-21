@@ -17,6 +17,18 @@ This allows for realistic testing and development without requiring physical SDR
 
 ### Environment Variables
 
+Replay files must be located within the build context of the `file-replay` service that is deployed, specifically inside `src/file-replay/files`.
+
+So for a file located at:
+```bash
+streaming-data-to-rag/src/file-replay/files/file1.mp3
+```
+
+the ENV should be set to
+```bash
+export REPLAY_FILES="file1.mp3"
+```
+
 Configure the file replay service using these environment variables:
 
 #### Required
