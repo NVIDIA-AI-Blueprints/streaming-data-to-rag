@@ -42,3 +42,4 @@ riva:
     verbatim_transcripts: false
     sample_rate: 16000           # Sample rate required by Riva ASR (16KHz PCM)
     min_db_export_chars: 500
+    db_export_timeout_sec: 120
