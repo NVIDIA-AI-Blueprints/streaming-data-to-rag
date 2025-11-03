@@ -8,6 +8,8 @@ The Streaming Data to RAG developer example solves this by enabling RAG systems 
 
 While this reference example showcases an ingestion pipeline transcribing FM-radio data, any number of data streaming workloads could be implemented with this architecture (see docs on [API integration](api-integration.md)). Other use cases could include smart spaces, predictive maintenance, root cause analysis, or any complex systems with many interrelated sensing and data streams.
 
+To learn more about how this blueprint is applied in real-world implementations, check out the detailed tech blogs from [Deepwave](https://deepwave.ai/news/mission-ready-ai-radio-intelligence-at-the-edge/) and [DataRobot](https://www.datarobot.com/blog/radio-intelligence-ai-agent/).
+
 ## Table of Contents
 
 - [Using the Brev Launchable](#using-the-brev-launchable)
