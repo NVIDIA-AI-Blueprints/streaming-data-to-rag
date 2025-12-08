@@ -40,7 +40,7 @@ jobs:
   deploy:
     needs: check-secrets
     if: needs.check-secrets.outputs.nvidia-api-key-exists == 'true'
-    runs-on: arc-runner-set-oke-org-nv-ai-bp
+    runs-on: arc-runners-org-nvidia-ai-bp-4-gpu
     env:
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
     steps:
