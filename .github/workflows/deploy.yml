@@ -15,32 +15,57 @@ env:
   RAG_UUID: "123456"
 
 jobs:
-  check-secrets:
+  preflight:
     runs-on: ubuntu-latest
     outputs:
-      nvidia-api-key-exists: ${{ steps.check-nvidia-key.outputs.exists }}
+      nvidia-api-key-exists: ${{ steps.preflight.outputs.nvidia_api_key_exists }}
+      nvcf-config-token-exists: ${{ steps.preflight.outputs.nvcf_config_token_exists }}
     steps:
-      - name: Check NVIDIA_API_KEY secret
-        id: check-nvidia-key
+      - name: Check required secrets
+        id: preflight
         run: |
+          echo "Checking required secrets..."
+          
+          # Check NVIDIA_API_KEY
           if [ -z "${{ secrets.NVIDIA_API_KEY }}" ]; then
             echo "ERROR: NVIDIA_API_KEY secret is not configured!"
             echo "Please add your NVIDIA API key as a repository secret:"
-            echo "1. Go to Settings > Secrets and variables > Actions"
-            echo "2. Click 'New repository secret'"
-            echo "3. Name: NVIDIA_API_KEY"
-            echo "4. Value: your-nvidia-api-key-from-build.nvidia.com"
-            echo "exists=false" >> $GITHUB_OUTPUT
-            exit 1
+            echo "  1. Go to Settings > Secrets and variables > Actions"
+            echo "  2. Click 'New repository secret'"
+            echo "  3. Name: NVIDIA_API_KEY"
+            echo "  4. Value: your-nvidia-api-key-from-build.nvidia.com"
+            echo "nvidia_api_key_exists=false" >> $GITHUB_OUTPUT
+            NVIDIA_KEY_MISSING=true
           else
             echo "SUCCESS: NVIDIA_API_KEY secret is configured"
-            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "nvidia_api_key_exists=true" >> $GITHUB_OUTPUT
+          fi
+          
+          # Check NVCF_CONFIG_ON_GITHUB_TOKEN
+          if [ -z "${{ secrets.NVCF_CONFIG_ON_GITHUB_TOKEN }}" ]; then
+            echo "WARNING: NVCF_CONFIG_ON_GITHUB_TOKEN secret is not configured!"
+            echo "Hosted NIM endpoint scanning will be skipped."
+            echo "To enable, add the token as a repository secret:"
+            echo "  1. Go to Settings > Secrets and variables > Actions"
+            echo "  2. Click 'New repository secret'"
+            echo "  3. Name: NVCF_CONFIG_ON_GITHUB_TOKEN"
+            echo "  4. Value: GitHub token with access to nvcf-api-gateway-config-prd repo"
+            echo "nvcf_config_token_exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "SUCCESS: NVCF_CONFIG_ON_GITHUB_TOKEN secret is configured"
+            echo "nvcf_config_token_exists=true" >> $GITHUB_OUTPUT
+          fi
+          
+          # Fail if required secrets are missing
+          if [ "$NVIDIA_KEY_MISSING" = "true" ]; then
+            exit 1
           fi
 
   deploy:
-    needs: check-secrets
-    if: needs.check-secrets.outputs.nvidia-api-key-exists == 'true'
+    needs: preflight
+    if: needs.preflight.outputs.nvidia-api-key-exists == 'true'
     runs-on: arc-runners-org-nvidia-ai-bp-4-gpu
+    # runs-on: arc-runner-set-oke-org-poc-4-gpu
     env:
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
     steps:
@@ -122,3 +147,54 @@ jobs:
           echo "Deploying FM Radio Ingestion Workflow and UI..."
           docker compose -f deploy/docker-compose.yaml --profile replay up -d
           echo "FM Radio Ingestion Workflow and UI deployed successfully!"
+
+      - name: Scan Docker Images
+        if: always()
+        env:
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          REPO_SAFE_NAME=$(echo "$REPO_NAME" | tr '/' '-')
+          REPORT_FILENAME="docker-image-report-${REPO_SAFE_NAME}-${{ github.run_id }}.json"
+          python3 .github/scripts/scan_docker_images.py \
+            --repo-root . \
+            --workflow-dir .github/workflows \
+            --exclude-dirs external \
+            --output "$REPORT_FILENAME" \
+            --run-id "${{ github.run_id }}" \
+            --run-number "${{ github.run_number }}" \
+            --repo-name "$REPO_NAME"
+          echo "REPORT_FILENAME=$REPORT_FILENAME" >> $GITHUB_ENV
+
+      - name: Upload Docker Image Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-report-${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ github.run_id }}
+          path: ${{ env.REPORT_FILENAME }}
+          retention-days: 90
+
+      - name: Scan Hosted NIM Endpoints
+        if: always() && needs.preflight.outputs.nvcf-config-token-exists == 'true'
+        env:
+          REPO_NAME: ${{ github.repository }}
+          NVCF_CONFIG_ON_GITHUB_TOKEN: ${{ secrets.NVCF_CONFIG_ON_GITHUB_TOKEN }}
+        run: |
+          pip install pyyaml -q
+          REPO_SAFE_NAME=$(echo "$REPO_NAME" | tr '/' '-')
+          NIM_REPORT_FILENAME="hosted-nim-report-${REPO_SAFE_NAME}-${{ github.run_id }}.json"
+          python3 .github/scripts/scan_hosted_nim.py \
+            --repo-root . \
+            --workflow-dir .github/workflows \
+            --output "$NIM_REPORT_FILENAME" \
+            --run-id "${{ github.run_id }}" \
+            --run-number "${{ github.run_number }}" \
+            --repo-name "$REPO_NAME"
+          echo "NIM_REPORT_FILENAME=$NIM_REPORT_FILENAME" >> $GITHUB_ENV
+
+      - name: Upload Hosted NIM Report
+        if: always() && needs.preflight.outputs.nvcf-config-token-exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-nim-report-${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ github.run_id }}
+          path: ${{ env.NIM_REPORT_FILENAME }}
+          retention-days: 90
