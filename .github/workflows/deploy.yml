@@ -148,3 +148,32 @@ jobs:
           name: docker-image-report-${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ github.run_id }}
           path: ${{ env.REPORT_FILENAME }}
           retention-days: 90
+
+      - name: Install PyYAML
+        if: always()
+        run: pip install pyyaml
+
+      - name: Scan Hosted NIM Endpoints
+        if: always()
+        env:
+          REPO_NAME: ${{ github.repository }}
+          NVCF_CONFIG_TOKEN: ${{ secrets.NVCF_CONFIG_TOKEN }}
+        run: |
+          REPO_SAFE_NAME=$(echo "$REPO_NAME" | tr '/' '-')
+          NIM_REPORT_FILENAME="hosted-nim-report-${REPO_SAFE_NAME}-${{ github.run_id }}.json"
+          python3 .github/scripts/scan_hosted_nim.py \
+            --repo-root . \
+            --workflow-dir .github/workflows \
+            --output "$NIM_REPORT_FILENAME" \
+            --run-id "${{ github.run_id }}" \
+            --run-number "${{ github.run_number }}" \
+            --repo-name "$REPO_NAME"
+          echo "NIM_REPORT_FILENAME=$NIM_REPORT_FILENAME" >> $GITHUB_ENV
+
+      - name: Upload Hosted NIM Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-nim-report-${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ github.run_id }}
+          path: ${{ env.NIM_REPORT_FILENAME }}
+          retention-days: 90
