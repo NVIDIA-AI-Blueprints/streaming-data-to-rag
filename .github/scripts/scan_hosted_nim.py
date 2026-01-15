@@ -67,9 +67,9 @@ def parse_args() -> argparse.Namespace:
         help="NVCF config YAML file name",
     )
     parser.add_argument(
-        "--github-token",
+        "--nvcf-config-token",
         type=str,
-        default=os.environ.get("NVCF_CONFIG_TOKEN", ""),
+        default=os.environ.get("NVCF_CONFIG_ON_GITHUB_TOKEN", ""),
         help="GitHub token for cloning NVCF config repo",
     )
     parser.add_argument(
@@ -560,7 +560,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         nvcf_dir = Path(temp_dir) / "nvcf-config"
 
-        if not clone_nvcf_config_repo(args.nvcf_config_repo, args.github_token, nvcf_dir):
+        if not clone_nvcf_config_repo(args.nvcf_config_repo, args.nvcf_config_token, nvcf_dir):
             print("Failed to clone NVCF config repository", file=sys.stderr)
             sys.exit(1)
 

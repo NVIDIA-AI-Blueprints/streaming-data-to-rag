@@ -157,7 +157,7 @@ jobs:
         if: always()
         env:
           REPO_NAME: ${{ github.repository }}
-          NVCF_CONFIG_TOKEN: ${{ secrets.NVCF_CONFIG_TOKEN }}
+          NVCF_CONFIG_ON_GITHUB_TOKEN: ${{ secrets.NVCF_CONFIG_ON_GITHUB_TOKEN }}
         run: |
           REPO_SAFE_NAME=$(echo "$REPO_NAME" | tr '/' '-')
           NIM_REPORT_FILENAME="hosted-nim-report-${REPO_SAFE_NAME}-${{ github.run_id }}.json"
