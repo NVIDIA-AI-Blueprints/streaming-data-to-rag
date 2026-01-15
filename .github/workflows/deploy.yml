@@ -18,54 +18,65 @@ jobs:
   preflight:
     runs-on: ubuntu-latest
     outputs:
-      nvidia-api-key-exists: ${{ steps.preflight.outputs.nvidia_api_key_exists }}
-      nvcf-config-token-exists: ${{ steps.preflight.outputs.nvcf_config_token_exists }}
+      nvidia-api-key-valid: ${{ steps.validate-nvidia-key.outputs.valid }}
+      nvcf-config-token-exists: ${{ steps.check-secrets.outputs.nvcf_config_token_exists }}
     steps:
-      - name: Check required secrets
-        id: preflight
+      - name: Check required secrets exist
+        id: check-secrets
         run: |
           echo "Checking required secrets..."
+          HAS_ERROR=false
           
-          # Check NVIDIA_API_KEY
+          # Check NVIDIA_API_KEY exists
           if [ -z "${{ secrets.NVIDIA_API_KEY }}" ]; then
-            echo "ERROR: NVIDIA_API_KEY secret is not configured!"
+            echo "::error::NVIDIA_API_KEY secret is not configured!"
             echo "Please add your NVIDIA API key as a repository secret:"
             echo "  1. Go to Settings > Secrets and variables > Actions"
             echo "  2. Click 'New repository secret'"
             echo "  3. Name: NVIDIA_API_KEY"
             echo "  4. Value: your-nvidia-api-key-from-build.nvidia.com"
-            echo "nvidia_api_key_exists=false" >> $GITHUB_OUTPUT
-            NVIDIA_KEY_MISSING=true
+            HAS_ERROR=true
           else
-            echo "SUCCESS: NVIDIA_API_KEY secret is configured"
-            echo "nvidia_api_key_exists=true" >> $GITHUB_OUTPUT
+            echo "NVIDIA_API_KEY secret exists"
           fi
           
           # Check NVCF_CONFIG_ON_GITHUB_TOKEN
           if [ -z "${{ secrets.NVCF_CONFIG_ON_GITHUB_TOKEN }}" ]; then
-            echo "WARNING: NVCF_CONFIG_ON_GITHUB_TOKEN secret is not configured!"
-            echo "Hosted NIM endpoint scanning will be skipped."
-            echo "To enable, add the token as a repository secret:"
-            echo "  1. Go to Settings > Secrets and variables > Actions"
-            echo "  2. Click 'New repository secret'"
-            echo "  3. Name: NVCF_CONFIG_ON_GITHUB_TOKEN"
-            echo "  4. Value: GitHub token with access to nvcf-api-gateway-config-prd repo"
+            echo "::warning::NVCF_CONFIG_ON_GITHUB_TOKEN secret is not configured. Hosted NIM endpoint scanning will be skipped."
             echo "nvcf_config_token_exists=false" >> $GITHUB_OUTPUT
           else
-            echo "SUCCESS: NVCF_CONFIG_ON_GITHUB_TOKEN secret is configured"
+            echo "NVCF_CONFIG_ON_GITHUB_TOKEN secret exists"
             echo "nvcf_config_token_exists=true" >> $GITHUB_OUTPUT
           fi
           
-          # Fail if required secrets are missing
-          if [ "$NVIDIA_KEY_MISSING" = "true" ]; then
+          if [ "$HAS_ERROR" = "true" ]; then
+            exit 1
+          fi
+
+      - name: Validate NVIDIA_API_KEY with nvcr.io
+        id: validate-nvidia-key
+        run: |
+          echo "Validating NVIDIA_API_KEY with nvcr.io..."
+          
+          # Try to login to nvcr.io to validate the API key
+          if echo "${{ secrets.NVIDIA_API_KEY }}" | docker login nvcr.io -u '$oauthtoken' --password-stdin 2>&1; then
+            echo "SUCCESS: NVIDIA_API_KEY is valid for nvcr.io"
+            echo "valid=true" >> $GITHUB_OUTPUT
+            docker logout nvcr.io > /dev/null 2>&1 || true
+          else
+            echo "::error::NVIDIA_API_KEY is invalid or expired! Docker login to nvcr.io failed."
+            echo "Please update your NVIDIA_API_KEY:"
+            echo "  1. Go to https://build.nvidia.com to get a new API key"
+            echo "  2. Update the secret in Settings > Secrets and variables > Actions"
+            echo "valid=false" >> $GITHUB_OUTPUT
             exit 1
           fi
 
   deploy:
     needs: preflight
-    if: needs.preflight.outputs.nvidia-api-key-exists == 'true'
-    runs-on: arc-runners-org-nvidia-ai-bp-4-gpu
-    # runs-on: arc-runner-set-oke-org-poc-4-gpu
+    if: needs.preflight.outputs.nvidia-api-key-valid == 'true'
+    # runs-on: arc-runners-org-nvidia-ai-bp-4-gpu
+    runs-on: arc-runner-set-oke-org-poc-4-gpu
     env:
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
     steps:
