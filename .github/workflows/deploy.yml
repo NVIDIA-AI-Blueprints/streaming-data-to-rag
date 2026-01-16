@@ -162,7 +162,7 @@ jobs:
   scan:
     needs: preflight
     if: always()
-    uses: bp-cicd-org/nim-docker-scanner/.github/workflows/scan.yml@main
+    uses: NVIDIA-AI-Blueprints/nim-docker-scanner/.github/workflows/scan.yml@main
     with:
       exclude-dirs: 'external'
       resolve-latest: true
