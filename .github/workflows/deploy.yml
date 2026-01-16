@@ -159,53 +159,15 @@ jobs:
           docker compose -f deploy/docker-compose.yaml --profile replay up -d
           echo "FM Radio Ingestion Workflow and UI deployed successfully!"
 
-      - name: Scan Docker Images
-        if: always()
-        env:
-          REPO_NAME: ${{ github.repository }}
-        run: |
-          REPO_SAFE_NAME=$(echo "$REPO_NAME" | tr '/' '-')
-          REPORT_FILENAME="docker-image-report-${REPO_SAFE_NAME}-${{ github.run_id }}.json"
-          python3 .github/scripts/scan_docker_images.py \
-            --repo-root . \
-            --workflow-dir .github/workflows \
-            --exclude-dirs external \
-            --output "$REPORT_FILENAME" \
-            --run-id "${{ github.run_id }}" \
-            --run-number "${{ github.run_number }}" \
-            --repo-name "$REPO_NAME"
-          echo "REPORT_FILENAME=$REPORT_FILENAME" >> $GITHUB_ENV
-
-      - name: Upload Docker Image Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-report-${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ github.run_id }}
-          path: ${{ env.REPORT_FILENAME }}
-          retention-days: 90
-
-      - name: Scan Hosted NIM Endpoints
-        if: always() && needs.preflight.outputs.nvcf-config-token-exists == 'true'
-        env:
-          REPO_NAME: ${{ github.repository }}
-          NVCF_CONFIG_ON_GITHUB_TOKEN: ${{ secrets.NVCF_CONFIG_ON_GITHUB_TOKEN }}
-        run: |
-          pip install pyyaml -q
-          REPO_SAFE_NAME=$(echo "$REPO_NAME" | tr '/' '-')
-          NIM_REPORT_FILENAME="hosted-nim-report-${REPO_SAFE_NAME}-${{ github.run_id }}.json"
-          python3 .github/scripts/scan_hosted_nim.py \
-            --repo-root . \
-            --workflow-dir .github/workflows \
-            --output "$NIM_REPORT_FILENAME" \
-            --run-id "${{ github.run_id }}" \
-            --run-number "${{ github.run_number }}" \
-            --repo-name "$REPO_NAME"
-          echo "NIM_REPORT_FILENAME=$NIM_REPORT_FILENAME" >> $GITHUB_ENV
-
-      - name: Upload Hosted NIM Report
-        if: always() && needs.preflight.outputs.nvcf-config-token-exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: hosted-nim-report-${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ github.run_id }}
-          path: ${{ env.NIM_REPORT_FILENAME }}
-          retention-days: 90
+  scan:
+    needs: preflight
+    if: always()
+    uses: bp-cicd-org/nim-docker-scanner/.github/workflows/scan.yml@main
+    with:
+      exclude-dirs: 'external'
+      resolve-latest: true
+      scan-docker-images: true
+      scan-hosted-nim: ${{ needs.preflight.outputs.nvcf-config-token-exists == 'true' }}
+    secrets:
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      NVCF_CONFIG_ON_GITHUB_TOKEN: ${{ secrets.NVCF_CONFIG_ON_GITHUB_TOKEN }}
