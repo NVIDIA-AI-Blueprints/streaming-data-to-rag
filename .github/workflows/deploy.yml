@@ -164,7 +164,7 @@ jobs:
     if: always()
     uses: NVIDIA-AI-Blueprints/nim-docker-scanner/.github/workflows/scan.yml@main
     with:
-      exclude-dirs: 'external'
+      # exclude-dirs: 'external'
       resolve-latest: true
       scan-docker-images: true
       scan-hosted-nim: ${{ needs.preflight.outputs.nvcf-config-token-exists == 'true' }}
