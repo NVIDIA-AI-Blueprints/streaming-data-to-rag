@@ -160,14 +160,17 @@ jobs:
           echo "FM Radio Ingestion Workflow and UI deployed successfully!"
 
   scan:
-    needs: preflight
+    needs: [preflight, deploy]
     if: always()
-    uses: NVIDIA-AI-Blueprints/nim-docker-scanner/.github/workflows/scan.yml@main
+    uses: bp-cicd-org/nim-docker-scanner/.github/workflows/scan.yml@main
     with:
-      # exclude-dirs: 'external'
+      exclude-dirs: 'external'
       resolve-latest: true
-      scan-docker-images: true
-      scan-hosted-nim: ${{ needs.preflight.outputs.nvcf-config-token-exists == 'true' }}
+      scan-local-nim: true
+      scan-hosted-nim: true
+      analyze-workflow-logs: true
+      target-job-name: 'deploy'
     secrets:
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
-      NVCF_CONFIG_ON_GITHUB_TOKEN: ${{ secrets.NVCF_CONFIG_ON_GITHUB_TOKEN }}
+
+
