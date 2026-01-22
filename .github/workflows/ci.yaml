@@ -305,12 +305,14 @@ jobs:
           
           cd notebooks
           
+          # Skip cell 4 which contains %env that would override our secrets
           python ../notebook_runner_nbclient.py \
             -f quickstart.ipynb \
             --output-dir ../notebook_output \
             --timeout 3600 \
             --skip-deps-check \
             --skip-tags ci-skip \
+            --skip-cells 4 \
             -e NGC_API_KEY="${NGC_API_KEY}" \
             -e NVIDIA_API_KEY="${NVIDIA_API_KEY}"
           
