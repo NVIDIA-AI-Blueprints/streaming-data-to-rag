@@ -284,6 +284,10 @@ jobs:
           echo "  EXECUTING NOTEBOOK: quickstart"
           echo "========================================"
           
+          # Export environment variables for notebook execution
+          export NVIDIA_API_KEY="${NVIDIA_API_KEY}"
+          export NGC_API_KEY="${NGC_API_KEY}"
+          
           COMMIT_SHA=$(git rev-parse --short=7 HEAD)
           
           cd notebooks
