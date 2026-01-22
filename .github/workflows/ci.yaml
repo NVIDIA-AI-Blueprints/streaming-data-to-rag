@@ -146,7 +146,8 @@ jobs:
     name: Streaming Data to RAG - Deploy & Test
     needs: preflight
     if: ${{ needs.preflight.outputs.preflight_passed == 'true' }}
-    runs-on: arc-runners-org-nvidia-ai-bp-4-gpu
+    runs-on: arc-runner-set-oke-org-poc-4-gpu
+    # runs-on: arc-runners-org-nvidia-ai-bp-4-gpu
     timeout-minutes: 240
     
     steps:
