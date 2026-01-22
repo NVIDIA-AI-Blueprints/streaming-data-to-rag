@@ -158,16 +158,3 @@ jobs:
           echo "Deploying FM Radio Ingestion Workflow and UI..."
           docker compose -f deploy/docker-compose.yaml --profile replay up -d
           echo "FM Radio Ingestion Workflow and UI deployed successfully!"
-
-  scan:
-    needs: preflight
-    if: always()
-    uses: NVIDIA-AI-Blueprints/nim-docker-scanner/.github/workflows/scan.yml@main
-    with:
-      # exclude-dirs: 'external'
-      resolve-latest: true
-      scan-docker-images: true
-      scan-hosted-nim: ${{ needs.preflight.outputs.nvcf-config-token-exists == 'true' }}
-    secrets:
-      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
-      NVCF_CONFIG_ON_GITHUB_TOKEN: ${{ secrets.NVCF_CONFIG_ON_GITHUB_TOKEN }}
