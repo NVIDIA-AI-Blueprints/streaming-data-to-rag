@@ -254,6 +254,19 @@ jobs:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
         run: |
+          # Debug: Check if secrets are available
+          if [ -z "${NVIDIA_API_KEY}" ]; then
+            echo "❌ ERROR: NVIDIA_API_KEY secret is not set or empty!"
+          else
+            echo "✓ NVIDIA_API_KEY is set (length: ${#NVIDIA_API_KEY})"
+          fi
+          
+          if [ -z "${NGC_API_KEY}" ]; then
+            echo "❌ ERROR: NGC_API_KEY secret is not set or empty!"
+          else
+            echo "✓ NGC_API_KEY is set (length: ${#NGC_API_KEY})"
+          fi
+          
           # Set environment variables for SDR deployment
           echo "NVIDIA_API_KEY=${NVIDIA_API_KEY}" >> $GITHUB_ENV
           echo "NGC_API_KEY=${NGC_API_KEY}" >> $GITHUB_ENV
