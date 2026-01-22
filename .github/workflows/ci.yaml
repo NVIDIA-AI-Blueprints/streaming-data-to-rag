@@ -11,6 +11,15 @@
 # pytest markers:
 #   - sdr and (notebook or ui)
 #
+# -----------------------------------------------------------------------------
+# Notebook → HTML Mapping (for pytest)
+# -----------------------------------------------------------------------------
+# The pytest test cases expect specific HTML filename in /app/input/
+#
+# | Notebook                     | Expected HTML filename    |
+# |------------------------------|---------------------------|
+# | notebooks/quickstart.ipynb   | srd-launchable.html       |
+#
 # =============================================================================
 
 name: Streaming Data to RAG CI
