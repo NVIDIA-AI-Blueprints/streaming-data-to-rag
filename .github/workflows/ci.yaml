@@ -398,7 +398,7 @@ jobs:
   pytest:
     name: Run Tests
     needs: [preflight, streaming-data-to-rag]
-    if: ${{ always() && needs.preflight.result == 'success' && (needs.streaming-data-to-rag.result == 'success' || needs.streaming-data-to-rag.result == 'skipped') }}
+    if: ${{ always() && needs.preflight.result == 'success' }}
     runs-on: ubuntu-latest
     
     steps:
