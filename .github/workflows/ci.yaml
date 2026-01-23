@@ -300,14 +300,17 @@ jobs:
           
           cd notebooks
           
-          # Skip cell 4 which contains %env that would override our secrets
+          # Skip cells explanation:
+          # - Cell 4:  Contains %env commands that override API keys with placeholders
+          # - Cell 50: Runs "docker compose down" which stops all services before pytest can run
+          # - Cell 52: Runs docker_ps() to verify containers stopped (not needed in CI)
           python ../notebook_runner_nbclient.py \
             -f quickstart.ipynb \
             --output-dir ../notebook_output \
             --timeout 3600 \
             --skip-deps-check \
             --skip-tags ci-skip \
-            --skip-cells 4 \
+            --skip-cells 4 50 52 \
             -e NGC_API_KEY="${NGC_API_KEY}" \
             -e NVIDIA_API_KEY="${NVIDIA_API_KEY}"
           
