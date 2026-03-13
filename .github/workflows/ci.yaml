@@ -174,8 +174,8 @@ jobs:
     name: Streaming Data to RAG - Deploy & Test
     needs: preflight
     if: ${{ needs.preflight.outputs.preflight_passed == 'true' }}
-    # runs-on: arc-runner-set-oke-org-poc-4-gpu
-    runs-on: arc-runners-org-nvidia-ai-bp-4-gpu
+    runs-on: arc-runner-set-oke-org-poc-4-gpu
+    # runs-on: arc-runners-org-nvidia-ai-bp-4-gpu
     timeout-minutes: 240
     
     steps:
@@ -211,11 +211,29 @@ jobs:
           echo "${NGC_API_KEY}" | docker login nvcr.io -u '$oauthtoken' --password-stdin
           echo "✓ NGC Docker login successful"
 
-      - name: Pull Test Image
+      - name: Pull Test Image (force fresh)
         run: |
           echo "Pulling test image: ${{ env.TEST_IMAGE }}"
+          echo ""
+          echo "Step 1: Remove any cached version to force fresh pull"
+          docker rmi ${{ env.TEST_IMAGE }} 2>/dev/null && echo "  ✓ Old cached image removed" || echo "  (no cached image to remove)"
+          echo ""
+          echo "Step 2: Pull latest from registry"
           docker pull ${{ env.TEST_IMAGE }}
           echo "✓ Test image pulled successfully"
+          echo ""
+          echo "Step 3: Verify image content (sanity check)"
+          LOCATOR_CHECK=$(docker run --rm --entrypoint="" ${{ env.TEST_IMAGE }} grep -c 'locator("textarea")' /app/testcases/sdr/test_sdr_ui.py 2>/dev/null || echo "0")
+          if [ "$LOCATOR_CHECK" -gt 0 ]; then
+            echo "  ✓ Image contains latest test code (textarea locator)"
+          else
+            echo "  ⚠ WARNING: Image may contain outdated test code!"
+            echo "  Checking actual locator in image:"
+            docker run --rm --entrypoint="" ${{ env.TEST_IMAGE }} grep -n 'fill\|placeholder\|textarea' /app/testcases/sdr/test_sdr_ui.py || true
+          fi
+          echo ""
+          echo "Image ID: $(docker inspect --format='{{.Id}}' ${{ env.TEST_IMAGE }})"
+          echo "Created:  $(docker inspect --format='{{.Created}}' ${{ env.TEST_IMAGE }})"
 
       # ==========================================
       # PHASE 2: Setup Notebook Runner
@@ -375,6 +393,153 @@ jobs:
           echo "Docker containers status:"
           docker ps -a --format "table {{.Names}}\t{{.Status}}"
 
+      - name: Wait for RAG Pipeline Ready
+        run: |
+          echo "========================================"
+          echo "  WAITING FOR RAG PIPELINE TO BE READY"
+          echo "========================================"
+          echo ""
+          echo "Pipeline: fm-file-replay → holoscan-sdr → asr-nim → RAG ingestion"
+          echo "Polling RAG retriever (POST http://localhost:8000/call) until it returns a valid response..."
+          echo "Max wait: 900s (15 min) | Poll interval: 5s | Curl timeout: 60s"
+          echo ""
+          
+          # Pre-check: show service health endpoints
+          echo "┌──────────────────────────────────────────────┐"
+          echo "│ Pre-check: Service Health Endpoints          │"
+          echo "└──────────────────────────────────────────────┘"
+          for svc in "Retriever|http://localhost:8000/health" "Ingestion|http://localhost:8001/health" "UI|http://localhost:3000" "ASR NIM|http://localhost:50050/v1/health/ready"; do
+            NAME=$(echo "$svc" | cut -d'|' -f1)
+            URL=$(echo "$svc" | cut -d'|' -f2)
+            if curl -sf --max-time 5 -o /dev/null "$URL" 2>/dev/null; then
+              echo "  ✓ $NAME ($URL) - healthy"
+            else
+              echo "  ✗ $NAME ($URL) - not reachable"
+            fi
+          done
+          echo ""
+          
+          # Pre-check: show key container logs (last 5 lines)
+          echo "┌──────────────────────────────────────────────┐"
+          echo "│ Pre-check: Recent Container Logs             │"
+          echo "└──────────────────────────────────────────────┘"
+          for container in fm-file-replay holoscan-sdr asr-nim vss-ctx-rag-retriever vss-ctx-rag-data-ingestion; do
+            echo "--- $container (last 5 lines) ---"
+            docker logs --tail 5 "$container" 2>&1 || echo "  (container not found)"
+            echo ""
+          done
+          
+          # Initialize the retriever's context manager
+          # (In normal usage, the UI proxy does this automatically before /call)
+          echo "┌──────────────────────────────────────────────┐"
+          echo "│ Initializing RAG Retriever Context Manager   │"
+          echo "└──────────────────────────────────────────────┘"
+          RAG_UUID="${RAG_UUID:-123456}"
+          INIT_RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 \
+            -X POST http://localhost:8000/init \
+            -H "Content-Type: application/json" \
+            -d "{\"uuid\": \"${RAG_UUID}\"}" \
+            2>/dev/null) || true
+          INIT_HTTP=$(echo "$INIT_RESPONSE" | tail -1)
+          INIT_BODY=$(echo "$INIT_RESPONSE" | sed '$d')
+          if [ "$INIT_HTTP" = "200" ]; then
+            echo "  ✓ Retriever initialized (HTTP ${INIT_HTTP}): ${INIT_BODY}"
+          else
+            echo "  ✗ Retriever init failed (HTTP ${INIT_HTTP}): ${INIT_BODY}"
+            echo "  Will retry /init during polling..."
+          fi
+          echo ""
+          
+          echo "┌──────────────────────────────────────────────┐"
+          echo "│ Polling RAG /call endpoint                   │"
+          echo "└──────────────────────────────────────────────┘"
+          
+          MAX_WAIT=900
+          INTERVAL=5
+          ELAPSED=0
+          ATTEMPT=0
+          
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            HTTP_CODE=0
+            RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 60 \
+              -X POST http://localhost:8000/call \
+              -H "Content-Type: application/json" \
+              -d '{"state": {"chat": {"question": "What topics have been discussed?"}}}' \
+              2>/dev/null) || true
+            
+            if [ -n "$RESPONSE" ]; then
+              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+              BODY=$(echo "$RESPONSE" | sed '$d')
+            else
+              BODY=""
+            fi
+            
+            if [ -n "$BODY" ] && [ "$HTTP_CODE" = "200" ]; then
+              STATUS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null) || true
+              RESULT=$(echo "$BODY" | python3 -c "import sys,json; r=json.load(sys.stdin).get('result',''); print(r[:200] if r else '')" 2>/dev/null) || true
+              
+              if [ "$STATUS" = "success" ] && [ -n "$RESULT" ]; then
+                NO_DATA=$(echo "$RESULT" | grep -ci "no database entries\|no stream.*provided\|no.*found within\|no data\|no entries\|no topics found\|no.*found based on" 2>/dev/null) || true
+                if [ "$NO_DATA" -gt 0 ]; then
+                  echo "  [#${ATTEMPT} ${ELAPSED}s] HTTP 200 but RAG has no ingested data yet (waiting for audio pipeline...)"
+                  echo "    Preview: ${RESULT:0:120}"
+                else
+                  echo ""
+                  echo "✓ RAG pipeline is ready with real data! (attempt #${ATTEMPT}, ${ELAPSED}s elapsed)"
+                  echo "  Response preview: ${RESULT:0:200}"
+                  break
+                fi
+              else
+                echo "  [#${ATTEMPT} ${ELAPSED}s] HTTP 200 but not valid yet (status=${STATUS:-empty}, result=${RESULT:-(empty)})"
+              fi
+            elif [ "$HTTP_CODE" = "400" ]; then
+              DETAIL=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('detail',''))" 2>/dev/null) || true
+              echo "  [#${ATTEMPT} ${ELAPSED}s] HTTP 400 - ${DETAIL:-$BODY}"
+              echo "    → Sending POST /init to initialize context manager..."
+              INIT_RETRY=$(curl -s -w "\n%{http_code}" --max-time 30 \
+                -X POST http://localhost:8000/init \
+                -H "Content-Type: application/json" \
+                -d "{\"uuid\": \"${RAG_UUID}\"}" \
+                2>/dev/null) || true
+              INIT_RETRY_HTTP=$(echo "$INIT_RETRY" | tail -1)
+              INIT_RETRY_BODY=$(echo "$INIT_RETRY" | sed '$d')
+              if [ "$INIT_RETRY_HTTP" = "200" ]; then
+                echo "    → /init succeeded (HTTP 200): ${INIT_RETRY_BODY}"
+                echo "    → Next /call attempt should succeed..."
+              else
+                echo "    → /init returned HTTP ${INIT_RETRY_HTTP}: ${INIT_RETRY_BODY}"
+              fi
+            elif [ "$HTTP_CODE" != "0" ]; then
+              DETAIL=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('detail',''))" 2>/dev/null) || true
+              echo "  [#${ATTEMPT} ${ELAPSED}s] HTTP ${HTTP_CODE} - ${DETAIL:-$BODY}"
+            else
+              echo "  [#${ATTEMPT} ${ELAPSED}s] Connection failed (service not reachable)"
+            fi
+            
+            ELAPSED=$((ELAPSED + INTERVAL))
+            sleep $INTERVAL
+          done
+          
+          echo ""
+          if [ $ELAPSED -ge $MAX_WAIT ]; then
+            echo "✗ TIMEOUT: RAG pipeline did not return a valid response within ${MAX_WAIT}s (${ATTEMPT} attempts)"
+            echo ""
+            echo "┌──────────────────────────────────────────────┐"
+            echo "│ Debug: Container Logs at Timeout             │"
+            echo "└──────────────────────────────────────────────┘"
+            for container in fm-file-replay holoscan-sdr asr-nim vss-ctx-rag-retriever vss-ctx-rag-data-ingestion; do
+              echo "--- $container (last 20 lines) ---"
+              docker logs --tail 20 "$container" 2>&1 || echo "  (container not found)"
+              echo ""
+            done
+            echo "Continuing with tests anyway..."
+          fi
+          
+          echo ""
+          echo "Docker containers status:"
+          docker ps -a --format "table {{.Names}}\t{{.Status}}"
+
       # ==========================================
       # PHASE 5: Prepare HTML and Run pytest
       # ==========================================
@@ -408,7 +573,7 @@ jobs:
           # Deselect tests with mismatched expected output:
           # - T5214917: expects "Submodule 'external/...'" but submodule already initialized (no output)
           # - T5215256: expects "naming to docker.io/library/agentiq-ui:latest" but output is "Image agentiq-ui:latest Built"
-          docker run --rm \
+          docker run --rm --pull always \
             --network host \
             -v "$(pwd)/notebook_output:/app/input" \
             -v "$(pwd)/test_reports:/app/reports" \
