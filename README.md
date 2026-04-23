@@ -49,7 +49,7 @@ To learn more about how this blueprint is applied in real-world implementations,
 Before you start, make sure that you have:
 - A GPU capable of running:
     + [Parakeet 0.6b ASR NIM](https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr) -- [Support matrix found here](https://docs.nvidia.com/nim/riva/asr/latest/support-matrix.html)
-    + [Llama 3.2 Embedding NIM](https://build.nvidia.com/nvidia/llama-3_2-nv-embedqa-1b-v2) -- [Support matrix found here](https://docs.nvidia.com/nim/nemo-retriever/text-embedding/latest/support-matrix.html)
+    + [Llama Nemotron Embedding NIM](https://build.nvidia.com/nvidia/llama-nemotron-embed-1b-v2) -- [Support matrix found here](https://docs.nvidia.com/nim/nemo-retriever/text-embedding/latest/support-matrix.html)
 - An NVIDIA API key from [build.nvidia.com](https://build.nvidia.com)
 - Docker, Docker Compose, and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 - CUDA >=12.2
@@ -87,13 +87,13 @@ See full documentation for the 3rd party repositories used:
     + Container base: `nvcr.io/nvidia/pytorch:23.08-py3`
 - [Parakeet 0.6 ASR NIM](https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr)
     + Handles automatic speech transcription capabilities via local deployment
-- [NVIDIA NeMo Retriever Llama 3.2 embedding NIM](https://build.nvidia.com/nvidia/llama-3_2-nv-embedqa-1b-v2)
-    + Handles text embeddings via local deployment NVIDIA NeMo Retriever Llama 3.2 embedding model
+- [NVIDIA NeMo Retriever Llama Nemotron embedding NIM](https://build.nvidia.com/nvidia/llama-nemotron-embed-1b-v2)
+    + Handles text embeddings via local deployment NVIDIA NeMo Retriever Llama Nemotron embedding model
 
 #### API Endpoints
 
 - [NVIDIA Nemotron Nano 9b v2 NIM](https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2)
-- [NVIDIA NeMo Retriever Llama 3.2 reranking NIM](https://build.nvidia.com/nvidia/llama-3_2-nv-rerankqa-1b-v2)
+- [NVIDIA NeMo Retriever Llama Nemotron reranking NIM](https://build.nvidia.com/nvidia/llama-nemotron-rerank-1b-v2)
 
 > **NOTE:** The NIM services used by the RAG backend (i.e. everything except for the ASR NIM) have configurable endpoints that can be set in `external/context-aware-rag/config/config.yaml`. Cloud and on-prem NIM deployments can be used interchangeably by updating the endpoints in the RAG configuration file.
 
@@ -258,5 +258,5 @@ Use of the models in this blueprint is governed by the [NVIDIA AI Foundation Mod
 The software and materials are governed by the [NVIDIA Software License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-software-license-agreement/) and the [Product-Specific Terms for AI Products](https://www.nvidia.com/en-us/agreements/enterprise-software/product-specific-terms-for-ai-products/); except for the models, which are governed by the [NVIDIA Community Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-community-models-license/); the NVIDIA NeMo-Agent-Toolkit-UI, which is governed by the [MIT License](https://github.com/NVIDIA/NeMo-Agent-Toolkit-UI/blob/main/LICENSE); the NVIDIA Holoscan SDK and the NVIDIA Context Aware RAG, which are governed by the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0); and the audio files, which are licensed under the [Creative Commons Attribution 4.0 International License (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/legalcode).
 
 #### Additional Information
-For nvidia-nemotron-nano-9b-v2, [NVIDIA Open Model License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/). For llama-3.2-nv-embedqa-1b-v2 and llama-3.2-nv-rerankqa-1b-v2, the [Llama 3.2 Community License Agreement](https://www.llama.com/llama3_2/license/). Built with Llama.
+For nvidia-nemotron-nano-9b-v2, llama-nemotron-embed-1b-v2, and llama-nemotron-rerank-1b-v2, the [NVIDIA Open Model License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/).
 
