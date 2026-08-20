@@ -10,6 +10,8 @@
 # its affiliates is strictly prohibited.
 ######################################################################################################
 
+name: streaming-data-to-rag
+
 services:
   # Speech Recognition (ASR) NIM
   asr-nim:
