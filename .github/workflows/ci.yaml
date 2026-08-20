@@ -174,8 +174,7 @@ jobs:
     name: Streaming Data to RAG - Deploy & Test
     needs: preflight
     if: ${{ needs.preflight.outputs.preflight_passed == 'true' }}
-    # runs-on: arc-runner-set-oke-org-poc-4-gpu
-    runs-on: arc-runners-org-nvidia-ai-bp-4-gpu
+    runs-on: arc-runners-org-nvidia-ai-bp-5-gpu
     timeout-minutes: 240
     
     steps:
@@ -608,9 +607,8 @@ jobs:
         if: always()
         run: |
           echo "Stopping all containers..."
-          docker compose -f deploy/docker-compose.yaml --profile replay down 2>/dev/null || true
-          docker compose -f external/context-aware-rag/docker/deploy/compose.yaml down 2>/dev/null || true
-          docker stop $(docker ps -aq) 2>/dev/null || true
+          docker compose -p sdr -f deploy/docker-compose.yaml --profile replay down --remove-orphans 2>/dev/null || true
+          docker compose -p ctx-rag -f external/context-aware-rag/docker/deploy/compose.yaml down --remove-orphans 2>/dev/null || true
           echo "✓ Cleanup completed"
 
   # ============================================

@@ -22,8 +22,8 @@ def wait_for_service(url, name=None, timeout=120, interval=5):
     print(f"❌ Service at '{name}' failed to start within {timeout} seconds")
     return False
 
-def tail_bash_command(cmd, n=10, interval=0.5):
-    """Tail a bash command and display the output in the notebook"""
+def tail_bash_command(cmd, n=10, interval=0.5, check=False):
+    """Tail a bash command and optionally raise when it exits non-zero."""
     proc = subprocess.Popen(
         cmd.split(),
         stdout=subprocess.PIPE,
@@ -60,7 +60,16 @@ def tail_bash_command(cmd, n=10, interval=0.5):
 
     except KeyboardInterrupt:
         proc.terminate()
+        proc.wait()
         print("Stopped.")
+        return
+
+    if check and proc.wait() != 0:
+        raise RuntimeError(
+            f"Command exited with status {proc.returncode}: {cmd}\n"
+            + "--- last output ---\n"
+            + "\n".join(buffer[-n:])
+        )
 
     print("✅ Done")
 
