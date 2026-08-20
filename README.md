@@ -244,8 +244,8 @@ Some suggested questions to start with:
 
 To end all services, run:
 ```bash
+docker compose -f deploy/docker-compose.yaml --profile replay down
 docker compose -f external/context-aware-rag/docker/deploy/compose.yaml down
-docker compose -f ../deploy/docker-compose.yaml --profile replay down
 ```
 
 ## Ethical Considerations

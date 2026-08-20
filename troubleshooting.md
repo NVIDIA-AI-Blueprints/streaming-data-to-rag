@@ -24,6 +24,6 @@ curl http://localhost:7474         # Neo4j
 ### Clean Start
 To start fresh and remove persisted data:
 ```bash
-docker compose -f external/context-aware-rag/docker/deploy/compose.yaml down -v
-docker compose -f deploy/docker-compose.yaml --profile replay down -v
+docker compose -f deploy/docker-compose.yaml --profile replay down
+docker compose -f external/context-aware-rag/docker/deploy/compose.yaml down
 ```
