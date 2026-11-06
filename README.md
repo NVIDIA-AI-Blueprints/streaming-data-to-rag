@@ -64,12 +64,14 @@ Before you start, make sure that you have:
 ### Software Components
 
 See full documentation for the 3rd party repositories used:
-- [Context-Aware RAG](https://github.com/NVIDIA/context-aware-rag/tree/streaming-data-to-rag-dev)
-- [NeMo Agent Toolkit UI](https://github.com/NVIDIA/NeMo-Agent-Toolkit-UI/tree/streaming-data-to-rag-dev)
+- [Context-Aware RAG](https://github.com/NVIDIA/context-aware-rag/tree/dev/streaming-data-to-rag)
+- [NeMo Agent Toolkit UI](https://github.com/NVIDIA/NeMo-Agent-Toolkit-UI)
 
 #### Deployed Locally
 
-- Context-Aware RAG (`streaming-data-to-rag-dev` development branch) - [GitHub repository](https://github.com/NVIDIA/context-aware-rag/tree/streaming-data-to-rag-dev)
+- Context-Aware RAG (`dev/streaming-data-to-rag` development branch) - [GitHub repository](https://github.com/NVIDIA/context-aware-rag/tree/dev/streaming-data-to-rag)
+    + The `external/context-aware-rag` submodule tracks this branch (see `.gitmodules`), **not** `main`. The `main` branch of `context-aware-rag` has a different layout, so changes to model names, container images or CA-RAG source needed by this blueprint must be made on `dev/streaming-data-to-rag` and then picked up here by bumping the submodule pointer.
+    + Model names are also baked into the CA-RAG source that goes into the `ctx_rag` image, so after bumping the submodule rebuild the image (see [Context-Aware RAG Image](#context-aware-rag-image)).
     + Handles ingestion of text documents and context-aware Q&A with stored data
     + Note that certain components of CA RAG in this blueprint are pre-release features that will be included in a future update at [https://github.com/NVIDIA/context-aware-rag](https://github.com/NVIDIA/context-aware-rag).
     + Containers:
@@ -77,7 +79,7 @@ See full documentation for the 3rd party repositories used:
         + Neo4j
         + CA-RAG Ingestion Service
         + CA-RAG Retrieval Service
-- NeMo Agent Toolkit UI (`streaming-data-to-rag-dev` development branch) - [GitHub repository](https://github.com/NVIDIA/NeMo-Agent-Toolkit-UI/tree/streaming-data-to-rag-dev)
+- NeMo Agent Toolkit UI (`external/NeMo-Agent-Toolkit-UI` submodule, tracks `main`) - [GitHub repository](https://github.com/NVIDIA/NeMo-Agent-Toolkit-UI)
     + Provides user interface with chat window and view of streaming and stored data
 - Software-Defined Radio
     + Receives baseband I/Q samples of FM radio via UDP, uses Holoscan application to perform signal processing and Riva interaction to convert the RF data into transcripts of the audio.
