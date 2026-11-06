@@ -50,6 +50,7 @@ Before you start, make sure that you have:
 - A GPU capable of running:
     + [Parakeet 0.6b ASR NIM](https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr) -- [Support matrix found here](https://docs.nvidia.com/nim/riva/asr/latest/support-matrix.html)
     + [Llama 3.2 Embedding NIM](https://build.nvidia.com/nvidia/llama-3_2-nv-embedqa-1b-v2) -- [Support matrix found here](https://docs.nvidia.com/nim/nemo-retriever/text-embedding/latest/support-matrix.html)
+    + Llama Nemotron reranking NIM (`nvcr.io/nim/nvidia/llama-nemotron-rerank-vl-1b-v2:2.3.0`, self-hosted by the CA-RAG compose file; GPU set by `RERANKER_GPU_ID`, default `0`)
 - An NVIDIA API key from [build.nvidia.com](https://build.nvidia.com)
 - Docker, Docker Compose, and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 - CUDA >=12.2
@@ -90,14 +91,23 @@ See full documentation for the 3rd party repositories used:
 - [Parakeet 0.6 ASR NIM](https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr)
     + Handles automatic speech transcription capabilities via local deployment
 - [NVIDIA NeMo Retriever Llama 3.2 embedding NIM](https://build.nvidia.com/nvidia/llama-3_2-nv-embedqa-1b-v2)
-    + Handles text embeddings via local deployment NVIDIA NeMo Retriever Llama 3.2 embedding model
+    + Handles text embeddings via local deployment of `nvidia/llama-3.2-nv-embedqa-1b-v2` (container `embedding-nim`, image `nvcr.io/nim/nvidia/llama-3.2-nv-embedqa-1b-v2:1.10.0`, deployed by the CA-RAG compose file)
+    + This model is reported as deprecated (it is no longer listed in the hosted catalog at `https://integrate.api.nvidia.com/v1/models`); replacing it is tracked in [#17](https://github.com/NVIDIA-AI-Blueprints/streaming-data-to-rag/issues/17) and needs a change on `dev/streaming-data-to-rag` plus a submodule bump.
+- NVIDIA Llama Nemotron reranking NIM
+    + Handles reranking of retrieved documents via local deployment of `nvidia/llama-nemotron-rerank-vl-1b-v2` (container `reranker-nim`, image `nvcr.io/nim/nvidia/llama-nemotron-rerank-vl-1b-v2:2.3.0`, deployed by the CA-RAG compose file)
 
 #### API Endpoints
 
-- [NVIDIA Nemotron Nano 9b v2 NIM](https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2)
-- [NVIDIA NeMo Retriever Llama 3.2 reranking NIM](https://build.nvidia.com/nvidia/llama-3_2-nv-rerankqa-1b-v2)
+- NVIDIA Nemotron 3.5 Lightning 30B A3B (`nvidia/nemotron-3.5-lightning-30b-a3b`), hosted at `https://integrate.api.nvidia.com/v1`
+    + LLM used by CA-RAG for summarization and chat (Q&A)
 
-> **NOTE:** The NIM services used by the RAG backend (i.e. everything except for the ASR NIM) have configurable endpoints that can be set in `external/context-aware-rag/config/config.yaml`. Cloud and on-prem NIM deployments can be used interchangeably by updating the endpoints in the RAG configuration file.
+The component list above matches the pinned CA-RAG submodule commit ([`docker/deploy/compose.yaml`](https://github.com/NVIDIA/context-aware-rag/blob/f83fe2f82b16078e315392ba0851ae94183b887a/docker/deploy/compose.yaml) and [`config/config.yaml`](https://github.com/NVIDIA/context-aware-rag/blob/f83fe2f82b16078e315392ba0851ae94183b887a/config/config.yaml)). If you bump the submodule, check those files for the models actually used.
+
+> **NOTE:** The models and endpoints used by the RAG backend (i.e. everything except for the ASR NIM) are set in `external/context-aware-rag/config/config.yaml`, and the self-hosted embedding and reranking NIM containers are defined in `external/context-aware-rag/docker/deploy/compose.yaml`. Cloud and on-prem NIM deployments can be used interchangeably by updating the endpoints in the RAG configuration file. `config.yaml` is copied into the `ctx_rag` image at build time (the services read `/app/config/config.yaml` inside the container), so **editing it has no effect until you rebuild the image and recreate the CA-RAG services**; otherwise the old configuration keeps running (for a model change this can look like the silent ingestion failure described in [#17](https://github.com/NVIDIA-AI-Blueprints/streaming-data-to-rag/issues/17)):
+> ```bash
+> docker compose -f external/context-aware-rag/docker/deploy/compose.yaml build
+> docker compose -f external/context-aware-rag/docker/deploy/compose.yaml up -d
+> ```
 
 ### Target Audience
 
