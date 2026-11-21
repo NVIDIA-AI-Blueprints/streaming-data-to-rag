@@ -95,7 +95,7 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
 
     # Split the comma-separated argument into multiple filenames
-    args.file_names = [name.strip() for name in args.file_names[0].split(',')]
+    args.file_names = [name.strip() for arg in args.file_names for name in arg.split(',') if name.strip()]
     logger.info(f"Split comma-separated file names: {args.file_names}")
 
     return args
